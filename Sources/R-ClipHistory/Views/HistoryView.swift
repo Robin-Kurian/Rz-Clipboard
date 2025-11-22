@@ -20,10 +20,25 @@ struct HistoryView: View {
     // MARK: - Time Formatting
     /// Date formatter for displaying copied time (e.g., "2:30 PM")
     /// Uses system's short time style (respects user's 12/24 hour preference)
-    private let timeFormatter: DateFormatter = {
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeStyle = .short // Shows time only (no date)
         formatter.dateStyle = .none
+        return formatter
+    }()
+    
+    /// Weekday formatter for displaying day names (e.g., "Monday")
+    private static let weekdayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE" // Full weekday name
+        return formatter
+    }()
+    
+    /// Date and time formatter for older dates
+    private static let dateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
         return formatter
     }()
     
@@ -36,26 +51,21 @@ struct HistoryView: View {
         
         // Check if date is today
         if calendar.isDateInToday(date) {
-            return "\(timeFormatter.string(from: date)) Today"
+            return "\(Self.timeFormatter.string(from: date)) Today"
         }
         
         // Check if date is yesterday
         if calendar.isDateInYesterday(date) {
-            return "\(timeFormatter.string(from: date)) Yesterday"
+            return "\(Self.timeFormatter.string(from: date)) Yesterday"
         }
         
         // Check if date is within the last 7 days
         if let daysAgo = calendar.dateComponents([.day], from: date, to: now).day, daysAgo <= 7 {
-            let weekdayFormatter = DateFormatter()
-            weekdayFormatter.dateFormat = "EEEE" // Full weekday name
-            return "\(timeFormatter.string(from: date)) \(weekdayFormatter.string(from: date))"
+            return "\(Self.timeFormatter.string(from: date)) \(Self.weekdayFormatter.string(from: date))"
         }
         
         // For older dates, show date and time
-        let dateTimeFormatter = DateFormatter()
-        dateTimeFormatter.dateStyle = .short
-        dateTimeFormatter.timeStyle = .short
-        return dateTimeFormatter.string(from: date)
+        return Self.dateTimeFormatter.string(from: date)
     }
 
     // MARK: - Header

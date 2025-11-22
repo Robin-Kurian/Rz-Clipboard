@@ -34,6 +34,7 @@ struct RClipHistoryApp: App {
             MainTabView(store: store, preferences: preferences)
                 .padding(12)
                 .background(.quaternary.opacity(0.25))
+                // .background(.ultraThinMaterial.opacity(0.25))
         }
         .menuBarExtraStyle(.window) // Window style allows clicking outside to close
     }

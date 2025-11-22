@@ -18,10 +18,15 @@ final class ClipboardHistoryStore: ObservableObject {
     /// Sorted by most recent first (inserted at index 0)
     @Published private(set) var pinnedEntries: [ClipboardEntry] = []
     
-    /// Captured images from clipboard (stored in memory only)
-    /// Only captured when saveImages preference is enabled
+    /// Recent (non-pinned) image entries stored in memory only
+    /// These are lost when app quits - only pinned images persist
     /// Sorted by most recent first (inserted at index 0)
     @Published private(set) var imageEntries: [ImageEntry] = []
+    
+    /// Pinned image entries that persist across app restarts
+    /// Saved to ~/Library/Application Support/R-ClipHistory/pinned-images.json
+    /// Sorted by most recent first (inserted at index 0)
+    @Published private(set) var pinnedImageEntries: [ImageEntry] = []
 
     // MARK: - Private Properties
     /// Reference to preferences model for configuration
@@ -57,6 +62,23 @@ final class ClipboardHistoryStore: ObservableObject {
         // Return path to pinned.json file
         return directory.appendingPathComponent("pinned.json")
     }()
+    
+    /// File URL for persistent storage of pinned image entries
+    /// Location: ~/Library/Application Support/R-ClipHistory/pinned-images.json
+    /// Directory is created automatically if it doesn't exist
+    private lazy var pinnedImageFileURL: URL = {
+        let fileManager = FileManager.default
+        // Get Application Support directory for current user
+        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        // Create R-ClipHistory subdirectory
+        let directory = appSupport.appendingPathComponent("R-ClipHistory", isDirectory: true)
+        // Create directory if it doesn't exist (first run)
+        if !fileManager.fileExists(atPath: directory.path) {
+            try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        // Return path to pinned-images.json file
+        return directory.appendingPathComponent("pinned-images.json")
+    }()
 
     // MARK: - Initialization
     /// Initialize clipboard store with preferences
@@ -68,6 +90,8 @@ final class ClipboardHistoryStore: ObservableObject {
         self.changeCount = NSPasteboard.general.changeCount
         // Load pinned entries from disk (if any)
         loadPinnedEntries()
+        // Load pinned image entries from disk (if any and if saveImages is enabled)
+        loadPinnedImages()
         // Start polling clipboard at configured interval
         startPolling()
         // Subscribe to preference changes for reactive updates
@@ -105,6 +129,12 @@ final class ClipboardHistoryStore: ObservableObject {
     func clear() {
         entries.removeAll()
     }
+    
+    /// Clear all recent (non-pinned) image entries from memory
+    /// Pinned image entries are not affected
+    func clearImages() {
+        imageEntries.removeAll()
+    }
 
     /// Toggle pin status of an entry
     /// Pinned entries are moved to pinnedEntries and persisted to disk
@@ -121,6 +151,23 @@ final class ClipboardHistoryStore: ObservableObject {
         // Only allow deletion of non-pinned entries
         guard !entry.isPinned else { return }
         entries.removeAll { $0.id == entry.id }
+    }
+    
+    /// Toggle pin status of an image entry
+    /// Pinned images are moved to pinnedImageEntries and persisted to disk
+    /// Unpinned images are moved back to imageEntries (in-memory)
+    /// - Parameter imageEntry: The image entry to pin/unpin
+    func toggleImagePin(_ imageEntry: ImageEntry) {
+        imageEntry.isPinned ? unpinImage(imageEntry) : pinImage(imageEntry)
+    }
+    
+    /// Delete a recent (non-pinned) image entry
+    /// Only works for images in the recent list, not pinned images
+    /// - Parameter imageEntry: The image entry to delete
+    func deleteImageEntry(_ imageEntry: ImageEntry) {
+        // Only allow deletion of non-pinned images
+        guard !imageEntry.isPinned else { return }
+        imageEntries.removeAll { $0.id == imageEntry.id }
     }
 
     // MARK: - Pin Management
@@ -159,6 +206,53 @@ final class ClipboardHistoryStore: ObservableObject {
         // Persist updated pinned list to disk
         persistPinnedEntries()
     }
+    
+    // MARK: - Image Pin Management
+    /// Pin an image entry (move to persistent storage)
+    /// - Parameter imageEntry: Image entry to pin
+    private func pinImage(_ imageEntry: ImageEntry) {
+        // Prevent duplicate pins
+        guard !pinnedImageEntries.contains(where: { $0.id == imageEntry.id }) else { return }
+        
+        // Mark as pinned and add to pinned image entries (most recent first)
+        var pinnedImage = imageEntry
+        pinnedImage.isPinned = true
+        pinnedImageEntries.insert(pinnedImage, at: 0)
+        
+        // Remove from recent image entries if it exists there
+        imageEntries.removeAll { $0.id == imageEntry.id }
+        
+        // Persist to disk immediately
+        persistPinnedImages()
+    }
+
+    /// Unpin an image entry (move back to in-memory recent entries)
+    /// - Parameter imageEntry: Image entry to unpin
+    private func unpinImage(_ imageEntry: ImageEntry) {
+        // Remove from pinned image entries
+        pinnedImageEntries.removeAll { $0.id == imageEntry.id }
+        
+        // Mark as unpinned and add back to recent image entries (most recent first)
+        var restoredImage = imageEntry
+        restoredImage.isPinned = false
+        imageEntries.insert(restoredImage, at: 0)
+        
+        // Enforce image limit (may remove oldest if over limit)
+        enforceImageLimit()
+        
+        // Persist updated pinned image list to disk
+        persistPinnedImages()
+    }
+    
+    /// Enforce maximum image limit by removing oldest entries
+    /// Only affects recent (non-pinned) image entries
+    private func enforceImageLimit() {
+        let limit = 50 // Max 50 recent images
+        if imageEntries.count > limit {
+            // Remove oldest entries (from end of array)
+            imageEntries.removeLast(imageEntries.count - limit)
+        }
+    }
 
     // MARK: - Preference Binding
     /// Subscribe to preference changes for reactive updates
@@ -178,6 +272,23 @@ final class ClipboardHistoryStore: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.startPolling()
+            }
+            .store(in: &cancellables)
+        
+        // When saveImages preference changes, handle accordingly
+        preferences.$saveImages
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                if enabled {
+                    // If enabled, load any existing pinned images from disk
+                    self?.loadPinnedImages()
+                } else {
+                    // If disabled, clear images from memory to free up space
+                    // Keep pinned images on disk so they're not lost if user re-enables
+                    self?.imageEntries.removeAll()
+                    self?.pinnedImageEntries.removeAll()
+                }
             }
             .store(in: &cancellables)
     }
@@ -217,20 +328,45 @@ final class ClipboardHistoryStore: ObservableObject {
 
         // Try to capture image first (if enabled)
         if preferences.saveImages {
-            if let image = pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage,
-               let tiffData = image.tiffRepresentation,
-               let imageData = NSBitmapImageRep(data: tiffData)?.representation(using: .png, properties: [:]) {
-                // Check for duplicates by comparing image data
-                if !preferences.preventDuplicates || 
-                   !imageEntries.contains(where: { $0.imageData == imageData }) {
-                    let imageEntry = ImageEntry(imageData: imageData, capturedAt: Date())
-                    imageEntries.insert(imageEntry, at: 0)
-                    // Limit to 50 images max
-                    if imageEntries.count > 50 {
-                        imageEntries.removeLast()
+            // Try to read image from pasteboard
+            var capturedImage: NSImage? = nil
+            
+            // First, try reading as NSImage directly
+            if let image = pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage {
+                capturedImage = image
+            }
+            // If that fails, try reading image data directly
+            else if let imageData = pasteboard.data(forType: .tiff),
+                    let image = NSImage(data: imageData) {
+                capturedImage = image
+            }
+            else if let imageData = pasteboard.data(forType: .png),
+                    let image = NSImage(data: imageData) {
+                capturedImage = image
+            }
+            
+            // If we found an image, convert it to PNG data and save
+            if let image = capturedImage {
+                // Convert to PNG data for storage
+                if let tiffData = image.tiffRepresentation,
+                   let bitmapRep = NSBitmapImageRep(data: tiffData),
+                   let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                    
+                    // Check for duplicates by comparing image data (check both recent and pinned)
+                    let shouldAdd = !preferences.preventDuplicates || 
+                                   (!imageEntries.contains(where: { $0.imageData == pngData }) &&
+                                    !pinnedImageEntries.contains(where: { $0.imageData == pngData }))
+                    
+                    if shouldAdd {
+                        let imageEntry = ImageEntry(imageData: pngData, capturedAt: Date(), isPinned: false)
+                        imageEntries.insert(imageEntry, at: 0)
+                        // Enforce image limit (may remove oldest if over limit)
+                        enforceImageLimit()
+                        return // Don't process text if we captured an image
                     }
-                    return // Don't process text if we captured an image
                 }
+                // If conversion fails, fall through to text capture
+                // (some images might not convert properly, but we tried)
             }
         }
 
@@ -308,6 +444,45 @@ final class ClipboardHistoryStore: ObservableObject {
         // Atomic write ensures file is either fully written or not at all
         // Prevents partial/corrupted files if app crashes during write
         try? data.write(to: pinnedFileURL, options: [.atomic])
+    }
+    
+    // MARK: - Image Persistence
+    /// Load pinned image entries from disk on app startup
+    /// Only loads if saveImages preference is enabled
+    private func loadPinnedImages() {
+        guard preferences.saveImages else { return }
+        
+        // Try loading from JSON file (current storage method)
+        if let data = try? Data(contentsOf: pinnedImageFileURL) {
+            decodePinnedImages(from: data)
+            return
+        }
+    }
+    
+    /// Decode pinned image entries from JSON data
+    /// Ensures all loaded entries are marked as pinned
+    /// - Parameter data: JSON data containing array of ImageEntry
+    private func decodePinnedImages(from data: Data) {
+        guard let decoded = try? JSONDecoder().decode([ImageEntry].self, from: data) else { return }
+        
+        // Ensure all entries are marked as pinned (safety check)
+        pinnedImageEntries = decoded.map {
+            var entry = $0
+            entry.isPinned = true
+            return entry
+        }
+    }
+    
+    /// Save pinned image entries to disk as JSON
+    /// Only saves if saveImages preference is enabled
+    /// Uses atomic write to prevent corruption if app crashes during save
+    private func persistPinnedImages() {
+        guard preferences.saveImages else { return }
+        
+        guard let data = try? JSONEncoder().encode(pinnedImageEntries) else { return }
+        // Atomic write ensures file is either fully written or not at all
+        // Prevents partial/corrupted files if app crashes during write
+        try? data.write(to: pinnedImageFileURL, options: [.atomic])
     }
 }
 
