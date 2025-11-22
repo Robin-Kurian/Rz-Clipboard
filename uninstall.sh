@@ -50,14 +50,14 @@ if [ "$FOUND" = false ]; then
 fi
 
 # Remove application support data
-echo "📂 Removing application data..."
-APP_SUPPORT="$HOME/Library/Application Support/$APP_NAME"
-if [ -d "$APP_SUPPORT" ]; then
-    echo "   Removing: $APP_SUPPORT"
-    rm -rf "$APP_SUPPORT"
-else
-    echo "   ℹ️  No application data found"
-fi
+# echo "📂 Removing application data..."
+# APP_SUPPORT="$HOME/Library/Application Support/$APP_NAME"
+# if [ -d "$APP_SUPPORT" ]; then
+#     echo "   Removing: $APP_SUPPORT"
+#     rm -rf "$APP_SUPPORT"
+# else
+#     echo "   ℹ️  No application data found"
+# fi
 
 # Remove preferences
 echo "⚙️  Removing preferences..."

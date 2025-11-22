@@ -61,6 +61,28 @@ final class PreferencesModel: ObservableObject {
             defaults.set(saveImages, forKey: Keys.saveImages.rawValue)
         }
     }
+    
+    /// Whether to automatically start the app on login
+    /// If true, creates a Launch Agent to start app on system login
+    /// Stored in UserDefaults key: "pref.autoStartOnLogin"
+    @Published var autoStartOnLogin: Bool {
+        didSet {
+            // Immediately persist boolean value
+            defaults.set(autoStartOnLogin, forKey: Keys.autoStartOnLogin.rawValue)
+            
+            // Update Launch Agent when preference changes
+            // Capture value to avoid data race
+            let shouldEnable = autoStartOnLogin
+            Task { @MainActor in
+                let launchAgentManager = LaunchAgentManager()
+                if shouldEnable {
+                    _ = launchAgentManager.enableAutoStart()
+                } else {
+                    _ = launchAgentManager.disableAutoStart()
+                }
+            }
+        }
+    }
 
     // MARK: - Private Properties
     /// UserDefaults instance for persistence (defaults to .standard)
@@ -77,12 +99,14 @@ final class PreferencesModel: ObservableObject {
         let storedInterval = defaults.object(forKey: Keys.pollInterval.rawValue) as? Double ?? 0.8
         let storedPreventDupes = defaults.object(forKey: Keys.preventDuplicates.rawValue) as? Bool ?? true
         let storedSaveImages = defaults.object(forKey: Keys.saveImages.rawValue) as? Bool ?? false
+        let storedAutoStart = defaults.object(forKey: Keys.autoStartOnLogin.rawValue) as? Bool ?? false
 
         // Clamp loaded values to ensure they're in valid ranges
         self.historyLimit = Self.clampedHistoryLimit(storedHistoryLimit)
         self.pollInterval = Self.clampedPollInterval(storedInterval)
         self.preventDuplicates = storedPreventDupes
         self.saveImages = storedSaveImages
+        self.autoStartOnLogin = storedAutoStart
     }
 
     // MARK: - Public Methods
@@ -93,6 +117,7 @@ final class PreferencesModel: ObservableObject {
         pollInterval = 0.8
         preventDuplicates = true
         saveImages = false
+        autoStartOnLogin = false
     }
 
     // MARK: - Private Validation Methods
@@ -118,6 +143,7 @@ final class PreferencesModel: ObservableObject {
         case pollInterval = "pref.pollInterval"
         case preventDuplicates = "pref.preventDuplicates"
         case saveImages = "pref.saveImages"
+        case autoStartOnLogin = "pref.autoStartOnLogin"
     }
 }
 

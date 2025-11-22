@@ -28,6 +28,7 @@ R-ClipHistory is a tiny SwiftUI menu-bar utility that keeps text you copy a keyb
 - **Poll interval** – Adjust clipboard check frequency (0.3-2.0 seconds, default 0.8s).
 - **Duplicate prevention** – Toggle to skip identical clipboard content.
 - **Save images** – Enable/disable image capture from clipboard.
+- **Start at login** – Automatically launch the app when you log in to your Mac.
 - **Reset to defaults** – Restore all settings to default values.
 
 ## Build & Run

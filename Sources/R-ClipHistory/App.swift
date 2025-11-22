@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Main application entry point for R-ClipHistory
 /// This is a macOS menu bar app that tracks clipboard history
@@ -24,6 +25,49 @@ struct RClipHistoryApp: App {
         // Create clipboard store with preferences dependency
         // Store will start polling clipboard immediately
         _store = StateObject(wrappedValue: ClipboardHistoryStore(preferences: prefs))
+        
+        // Prevent multiple instances from running
+        // Check if another instance is already running (before this one was launched)
+        let bundleId = "com.robin.rcliphistory"
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
+        
+        // Get current process ID
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        
+        // Check if there's another instance running (different PID)
+        let otherInstances = runningApps.filter { $0.processIdentifier != currentPID }
+        
+        // If there's already a running instance (other than this one), terminate
+        // Note: This check happens after initialization to satisfy Swift's requirements
+        if !otherInstances.isEmpty {
+            // Another instance is already running - terminate this one after a brief delay
+            // This allows the app to initialize properly before terminating
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                NSApplication.shared.terminate(nil)
+            }
+            return
+        }
+        
+        // Sync Launch Agent with current preference state on app launch
+        // Delay slightly to ensure app is fully initialized
+        Task { @MainActor in
+            // Small delay to ensure app is fully running
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            
+            let launchAgentManager = LaunchAgentManager()
+            let shouldBeEnabled = prefs.autoStartOnLogin
+            let isCurrentlyEnabled = launchAgentManager.isAutoStartEnabled()
+            
+            // If preference says enabled but Launch Agent doesn't exist, create it
+            if shouldBeEnabled && !isCurrentlyEnabled {
+                _ = launchAgentManager.enableAutoStart()
+            }
+            // If preference says disabled but Launch Agent exists, remove it
+            else if !shouldBeEnabled && isCurrentlyEnabled {
+                _ = launchAgentManager.disableAutoStart()
+            }
+        }
     }
 
     // MARK: - Scene Configuration

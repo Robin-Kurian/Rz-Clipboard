@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Settings view for configuring clipboard history preferences
 /// All changes are automatically persisted to UserDefaults
@@ -19,11 +20,12 @@ struct SettingsView: View {
                 pollingSection
                 duplicatesSection
                 imagesSection
+                autoStartSection
                 
                 Spacer()
                 
-                // Reset button at bottom
-                resetButton
+                // Bottom buttons: Reset on left, Quit on right
+                bottomButtons
             }
             .padding(8)
         }
@@ -106,14 +108,40 @@ struct SettingsView: View {
             }
         }
     }
+    
+    /// Auto-start on login configuration section
+    /// Controls whether app should start automatically on system login
+    private var autoStartSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                // Toggle for enabling/disabling auto-start
+                Toggle("Start at login", isOn: $preferences.autoStartOnLogin)
+                // Help text explaining the setting
+                Text("Automatically launch the app when you log in to your Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
 
     // MARK: - Actions
-    /// Reset all preferences to default values
-    private var resetButton: some View {
-        Button("Reset to defaults") {
-            preferences.resetToDefaults()
+    /// Bottom buttons container with Reset (left) and Quit (right)
+    private var bottomButtons: some View {
+        HStack {
+            // Reset button on the left
+            Button("Reset to defaults") {
+                preferences.resetToDefaults()
+            }
+            .buttonStyle(.bordered)
+            
+            Spacer()
+            
+            // Quit button on the right
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
+            }
+            .buttonStyle(.bordered)
         }
-        .buttonStyle(.bordered)
     }
 }
 
