@@ -1,13 +1,21 @@
 import SwiftUI
 import AppKit
+import Combine
 
 @main
 struct RClipHistoryApp: App {
-    @StateObject private var store = ClipboardHistoryStore()
+    @StateObject private var preferences: PreferencesModel
+    @StateObject private var store: ClipboardHistoryStore
+
+    init() {
+        let prefs = PreferencesModel()
+        _preferences = StateObject(wrappedValue: prefs)
+        _store = StateObject(wrappedValue: ClipboardHistoryStore(preferences: prefs))
+    }
 
     var body: some Scene {
         MenuBarExtra("R-ClipHistory", systemImage: "doc.on.clipboard.fill") {
-            ClipboardHistoryView(store: store)
+            ClipboardHistoryView(store: store, preferences: preferences)
                 .frame(width: 320, height: 360)
                 .padding(12)
         }
@@ -20,11 +28,11 @@ final class ClipboardHistoryStore: ObservableObject {
     @Published private(set) var entries: [ClipboardEntry] = []
     @Published private(set) var pinnedEntries: [ClipboardEntry] = []
 
+    private let preferences: PreferencesModel
     private var changeCount: Int
-    private let maxItems: Int
     private var timer: Timer?
-    private let pollInterval: TimeInterval
     private let pinnedStorageKey = "com.robin.rcliphistory.pinned"
+    private var cancellables: Set<AnyCancellable> = []
     private lazy var pinnedFileURL: URL = {
         let fileManager = FileManager.default
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -35,12 +43,12 @@ final class ClipboardHistoryStore: ObservableObject {
         return directory.appendingPathComponent("pinned.json")
     }()
 
-    init(maxItems: Int = 25, pollInterval: TimeInterval = 0.8) {
-        self.maxItems = maxItems
-        self.pollInterval = pollInterval
+    init(preferences: PreferencesModel) {
+        self.preferences = preferences
         self.changeCount = NSPasteboard.general.changeCount
         loadPinnedEntries()
         startPolling()
+        bindPreferences()
     }
 
     func copyToClipboard(_ entry: ClipboardEntry) {
@@ -76,9 +84,27 @@ final class ClipboardHistoryStore: ObservableObject {
         persistPinnedEntries()
     }
 
+    private func bindPreferences() {
+        preferences.$historyLimit
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.enforceHistoryLimit()
+            }
+            .store(in: &cancellables)
+
+        preferences.$pollInterval
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.startPolling()
+            }
+            .store(in: &cancellables)
+    }
+
     private func startPolling() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true, block: { [weak self] _ in
+        let interval = max(preferences.pollInterval, 0.3)
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true, block: { [weak self] _ in
             Task { await self?.captureClipboardChange() }
         })
         if let timer {
@@ -95,14 +121,21 @@ final class ClipboardHistoryStore: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines),
               !newValue.isEmpty else { return }
 
+        if preferences.preventDuplicates &&
+            (entries.contains(where: { $0.content == newValue }) ||
+             pinnedEntries.contains(where: { $0.content == newValue })) {
+            return
+        }
+
         let entry = ClipboardEntry(content: newValue, capturedAt: Date())
         entries.insert(entry, at: 0)
         enforceHistoryLimit()
     }
 
     private func enforceHistoryLimit() {
-        if entries.count > maxItems {
-            entries.removeLast(entries.count - maxItems)
+        let limit = preferences.historyLimit
+        if entries.count > limit {
+            entries.removeLast(entries.count - limit)
         }
     }
 
@@ -151,6 +184,8 @@ struct ClipboardEntry: Identifiable, Codable {
 
 struct ClipboardHistoryView: View {
     @ObservedObject var store: ClipboardHistoryStore
+    @ObservedObject var preferences: PreferencesModel
+    @State private var isShowingSettings = false
     private let dateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
@@ -164,10 +199,27 @@ struct ClipboardHistoryView: View {
             historyList
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(preferences: preferences)
+        }
     }
 
     private var header: some View {
-        HStack {
+        HStack(spacing: 10) {
+            Button {
+                isShowingSettings = true
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .imageScale(.medium)
+                    .padding(6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(.quaternary)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Settings")
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("R-ClipHistory")
                     .font(.headline)
