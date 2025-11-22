@@ -32,10 +32,40 @@ R-ClipHistory is a tiny SwiftUI menu-bar utility that keeps text you copy a keyb
 
 ## Build & Run
 
+### Development
 ```bash
 cd "/Users/robin/My Space/Personal/R-ClipHistory"
 swift run
 ```
+
+### Release Build (App Bundle & DMG)
+To create a distributable app bundle and DMG file:
+```bash
+./build-release.sh
+```
+
+This will create:
+- `build/R-ClipHistory.app` - macOS app bundle
+- `build/R-ClipHistory-v1.0.0.dmg` - DMG installer
+
+To install from DMG:
+1. Open the DMG file
+2. Drag `R-ClipHistory.app` to your Applications folder
+3. Launch from Applications or Spotlight
+
+**Note:** Menu bar apps (LSUIElement) don't appear in the dock but will show in the menu bar.
+
+### Uninstall
+To completely remove the app and all its data:
+```bash
+./uninstall.sh
+```
+
+Or manually:
+1. Quit the app (click menu bar icon or `pkill -f "R-ClipHistory"`)
+2. Remove app bundle from wherever you installed it
+3. Delete `~/Library/Application Support/R-ClipHistory`
+4. Delete `~/Library/Preferences/com.robin.rcliphistory.plist` (if exists)
 
 The app targets macOS 13+ and requires the Xcode 15.4 (Swift 6) toolchain. When you run it, look for the "R-ClipHistory" icon in your menu bar.
 
