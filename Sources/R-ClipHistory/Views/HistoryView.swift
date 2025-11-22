@@ -27,11 +27,35 @@ struct HistoryView: View {
         return formatter
     }()
     
-    /// Format a date as a time string for display
+    /// Format a date as a time string with relative date (e.g., "Today 2:30 PM", "Yesterday 7:10 PM")
     /// - Parameter date: Date to format
-    /// - Returns: Formatted time string (e.g., "2:30 PM" or "14:30")
+    /// - Returns: Formatted time string with relative date prefix
     private func formatCopiedTime(_ date: Date) -> String {
-        return timeFormatter.string(from: date)
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Check if date is today
+        if calendar.isDateInToday(date) {
+            return "\(timeFormatter.string(from: date)) Today"
+        }
+        
+        // Check if date is yesterday
+        if calendar.isDateInYesterday(date) {
+            return "\(timeFormatter.string(from: date)) Yesterday"
+        }
+        
+        // Check if date is within the last 7 days
+        if let daysAgo = calendar.dateComponents([.day], from: date, to: now).day, daysAgo <= 7 {
+            let weekdayFormatter = DateFormatter()
+            weekdayFormatter.dateFormat = "EEEE" // Full weekday name
+            return "\(timeFormatter.string(from: date)) \(weekdayFormatter.string(from: date))"
+        }
+        
+        // For older dates, show date and time
+        let dateTimeFormatter = DateFormatter()
+        dateTimeFormatter.dateStyle = .short
+        dateTimeFormatter.timeStyle = .short
+        return dateTimeFormatter.string(from: date)
     }
 
     // MARK: - Header
@@ -71,12 +95,13 @@ struct HistoryView: View {
                     if !store.pinnedEntries.isEmpty {
                         sectionLabel("Pinned")
                         VStack(spacing: 8) {
-                            // Render each pinned entry
+                            // Render each pinned entry (no delete action for pinned items)
                             ForEach(store.pinnedEntries) { entry in
                                 ClipboardRow(
                                     entry: entry,
                                     copyAction: { store.copyToClipboard(entry) },
                                     pinAction: { store.togglePin(entry) },
+                                    deleteAction: nil, // Pinned items cannot be deleted
                                     relativeTime: formatCopiedTime(entry.capturedAt)
                                 )
                             }
@@ -87,12 +112,13 @@ struct HistoryView: View {
                     if !store.entries.isEmpty {
                         sectionLabel("Recent")
                         VStack(spacing: 8) {
-                            // Render each recent entry
+                            // Render each recent entry (with delete action)
                             ForEach(store.entries) { entry in
                                 ClipboardRow(
                                     entry: entry,
                                     copyAction: { store.copyToClipboard(entry) },
                                     pinAction: { store.togglePin(entry) },
+                                    deleteAction: { store.deleteEntry(entry) }, // Recent items can be deleted
                                     relativeTime: formatCopiedTime(entry.capturedAt)
                                 )
                             }

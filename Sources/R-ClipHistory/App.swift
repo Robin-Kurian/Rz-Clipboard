@@ -33,6 +33,7 @@ struct RClipHistoryApp: App {
             // Main tab view containing History and Settings tabs
             MainTabView(store: store, preferences: preferences)
                 .padding(12)
+                .background(.quaternary.opacity(0.25))
         }
         .menuBarExtraStyle(.window) // Window style allows clicking outside to close
     }

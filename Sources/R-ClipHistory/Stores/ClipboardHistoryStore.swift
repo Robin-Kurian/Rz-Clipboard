@@ -17,6 +17,11 @@ final class ClipboardHistoryStore: ObservableObject {
     /// Saved to ~/Library/Application Support/R-ClipHistory/pinned.json
     /// Sorted by most recent first (inserted at index 0)
     @Published private(set) var pinnedEntries: [ClipboardEntry] = []
+    
+    /// Captured images from clipboard (stored in memory only)
+    /// Only captured when saveImages preference is enabled
+    /// Sorted by most recent first (inserted at index 0)
+    @Published private(set) var imageEntries: [ImageEntry] = []
 
     // MARK: - Private Properties
     /// Reference to preferences model for configuration
@@ -81,6 +86,19 @@ final class ClipboardHistoryStore: ObservableObject {
         // This prevents entries from duplicating when user copies from history
         changeCount = pasteboard.changeCount
     }
+    
+    /// Copy an image entry back to the system clipboard
+    /// Updates changeCount to prevent re-capturing this image immediately
+    /// - Parameter imageEntry: The image entry to copy
+    func copyImageToClipboard(_ imageEntry: ImageEntry) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if let image = imageEntry.getImage() {
+            pasteboard.writeObjects([image])
+        }
+        // Update changeCount so we don't immediately re-capture this image
+        changeCount = pasteboard.changeCount
+    }
 
     /// Clear all recent (non-pinned) entries from memory
     /// Pinned entries are not affected
@@ -94,6 +112,15 @@ final class ClipboardHistoryStore: ObservableObject {
     /// - Parameter entry: The entry to pin/unpin
     func togglePin(_ entry: ClipboardEntry) {
         entry.isPinned ? unpin(entry) : pin(entry)
+    }
+    
+    /// Delete a recent (non-pinned) entry
+    /// Only works for entries in the recent list, not pinned entries
+    /// - Parameter entry: The entry to delete
+    func deleteEntry(_ entry: ClipboardEntry) {
+        // Only allow deletion of non-pinned entries
+        guard !entry.isPinned else { return }
+        entries.removeAll { $0.id == entry.id }
     }
 
     // MARK: - Pin Management
@@ -179,7 +206,7 @@ final class ClipboardHistoryStore: ObservableObject {
 
     /// Check clipboard for changes and capture new content
     /// Called periodically by polling timer
-    /// Only captures text content (ignores images, files, etc.)
+    /// Captures both text and images (if enabled)
     @MainActor
     private func captureClipboardChange() {
         let pasteboard = NSPasteboard.general
@@ -187,6 +214,25 @@ final class ClipboardHistoryStore: ObservableObject {
         // Check if clipboard actually changed (changeCount increments on any change)
         guard pasteboard.changeCount != changeCount else { return }
         changeCount = pasteboard.changeCount
+
+        // Try to capture image first (if enabled)
+        if preferences.saveImages {
+            if let image = pasteboard.readObjects(forClasses: [NSImage.self], options: nil)?.first as? NSImage,
+               let tiffData = image.tiffRepresentation,
+               let imageData = NSBitmapImageRep(data: tiffData)?.representation(using: .png, properties: [:]) {
+                // Check for duplicates by comparing image data
+                if !preferences.preventDuplicates || 
+                   !imageEntries.contains(where: { $0.imageData == imageData }) {
+                    let imageEntry = ImageEntry(imageData: imageData, capturedAt: Date())
+                    imageEntries.insert(imageEntry, at: 0)
+                    // Limit to 50 images max
+                    if imageEntries.count > 50 {
+                        imageEntries.removeLast()
+                    }
+                    return // Don't process text if we captured an image
+                }
+            }
+        }
 
         // Get string content and trim whitespace
         guard let newValue = pasteboard.string(forType: .string)?

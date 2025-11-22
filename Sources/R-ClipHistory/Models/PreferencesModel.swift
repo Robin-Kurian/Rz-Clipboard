@@ -51,6 +51,16 @@ final class PreferencesModel: ObservableObject {
             defaults.set(preventDuplicates, forKey: Keys.preventDuplicates.rawValue)
         }
     }
+    
+    /// Whether to save and track images from clipboard
+    /// If true, images copied to clipboard will be captured and stored
+    /// Stored in UserDefaults key: "pref.saveImages"
+    @Published var saveImages: Bool {
+        didSet {
+            // Immediately persist boolean value
+            defaults.set(saveImages, forKey: Keys.saveImages.rawValue)
+        }
+    }
 
     // MARK: - Private Properties
     /// UserDefaults instance for persistence (defaults to .standard)
@@ -66,11 +76,13 @@ final class PreferencesModel: ObservableObject {
         let storedHistoryLimit = defaults.object(forKey: Keys.historyLimit.rawValue) as? Int ?? 25
         let storedInterval = defaults.object(forKey: Keys.pollInterval.rawValue) as? Double ?? 0.8
         let storedPreventDupes = defaults.object(forKey: Keys.preventDuplicates.rawValue) as? Bool ?? true
+        let storedSaveImages = defaults.object(forKey: Keys.saveImages.rawValue) as? Bool ?? false
 
         // Clamp loaded values to ensure they're in valid ranges
         self.historyLimit = Self.clampedHistoryLimit(storedHistoryLimit)
         self.pollInterval = Self.clampedPollInterval(storedInterval)
         self.preventDuplicates = storedPreventDupes
+        self.saveImages = storedSaveImages
     }
 
     // MARK: - Public Methods
@@ -80,6 +92,7 @@ final class PreferencesModel: ObservableObject {
         historyLimit = 25
         pollInterval = 0.8
         preventDuplicates = true
+        saveImages = false
     }
 
     // MARK: - Private Validation Methods
@@ -104,6 +117,7 @@ final class PreferencesModel: ObservableObject {
         case historyLimit = "pref.historyLimit"
         case pollInterval = "pref.pollInterval"
         case preventDuplicates = "pref.preventDuplicates"
+        case saveImages = "pref.saveImages"
     }
 }
 

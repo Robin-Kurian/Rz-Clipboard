@@ -13,6 +13,9 @@ struct ClipboardRow: View {
     /// Callback when user taps pin/unpin button
     let pinAction: () -> Void
     
+    /// Optional callback when user taps delete button (only for recent items)
+    let deleteAction: (() -> Void)?
+    
     /// Formatted time string to display (e.g., "2:30 PM")
     let relativeTime: String
     
@@ -27,19 +30,41 @@ struct ClipboardRow: View {
     // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Entry content (truncated to 3 lines)
+            // Top row: content text
             Text(entry.content)
                 .font(.system(.body, design: .rounded))
                 .multilineTextAlignment(.leading)
                 .lineLimit(3) // Show max 3 lines, truncate with ellipsis
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.clear, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(isHovering ? 0.2 : 0.05), 
+                        radius: isHovering ? 6 : 2, x: 0, y: 2)
+                .contentShape(RoundedRectangle(cornerRadius: 8))
             
-            // Bottom row: time, copy status, pin button
+            // Bottom row: time, delete button (if recent), copy status, pin button
             HStack {
                 // Time label with pin or clock icon
                 Label(relativeTime, systemImage: entry.isPinned ? "pin.fill" : "clock")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                
+                // Delete button (only shown for non-pinned items, right after time)
+                if let deleteAction = deleteAction, !entry.isPinned {
+                    Button {
+                        deleteAction()
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Delete")
+                }
                 
                 Spacer()
                 

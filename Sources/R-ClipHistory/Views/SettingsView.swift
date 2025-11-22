@@ -18,6 +18,7 @@ struct SettingsView: View {
                 historyLimitSection
                 pollingSection
                 duplicatesSection
+                imagesSection
                 
                 Spacer()
                 
@@ -85,6 +86,21 @@ struct SettingsView: View {
                 Toggle("Skip duplicate entries", isOn: $preferences.preventDuplicates)
                 // Help text explaining the setting
                 Text("Prevents identical clips from being saved multiple times.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+    
+    /// Image saving configuration section
+    /// Controls whether images from clipboard should be captured
+    private var imagesSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                // Toggle for enabling/disabling image saving
+                Toggle("Save images", isOn: $preferences.saveImages)
+                // Help text explaining the setting
+                Text("Captures images copied to clipboard and shows them in Images tab.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

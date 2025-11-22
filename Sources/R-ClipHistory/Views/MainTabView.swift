@@ -13,13 +13,22 @@ struct MainTabView: View {
     /// Currently selected tab ID
     @State private var selectedTab: Int = 0
     
-    /// Tab items configuration (easily extensible for more tabs)
-    private let tabs: [TabItem] = [
-        TabItem(id: 0, title: "History", icon: "doc.on.clipboard"),
-        TabItem(id: 1, title: "Settings", icon: "gearshape")
-        // Add more tabs here as needed, e.g.:
-        // TabItem(id: 2, title: "Search", icon: "magnifyingglass")
-    ]
+    /// Computed tab items - Images tab is hidden until saveImages is enabled
+    private var tabs: [TabItem] {
+        var items: [TabItem] = [
+            TabItem(id: 0, title: "History", icon: "doc.on.clipboard")
+        ]
+        
+        // Add Images tab if saveImages is enabled (always exists, just hidden)
+        if preferences.saveImages {
+            items.append(TabItem(id: 1, title: "Images", icon: "photo"))
+        }
+        
+        // Settings is always last
+        items.append(TabItem(id: preferences.saveImages ? 2 : 1, title: "Settings", icon: "gearshape"))
+        
+        return items
+    }
 
     // MARK: - Body
     var body: some View {
@@ -30,6 +39,12 @@ struct MainTabView: View {
                 case 0:
                     HistoryView(store: store)
                 case 1:
+                    if preferences.saveImages {
+                        ImagesView(store: store)
+                    } else {
+                        SettingsView(preferences: preferences)
+                    }
+                case 2:
                     SettingsView(preferences: preferences)
                 default:
                     EmptyView()
@@ -37,7 +52,7 @@ struct MainTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Reusable tab bar component
+            // Reusable tab bar component (only shows visible tabs)
             TabBar(items: tabs, selectedTab: $selectedTab)
         }
         .frame(width: 320, height: 360)
