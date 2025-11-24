@@ -74,7 +74,7 @@ struct HistoryView: View {
         HStack(spacing: 10) {
             // App title and info text
             VStack(alignment: .leading, spacing: 2) {
-                Text("R-ClipHistory")
+                Text("Rz Clipboard")
                     .font(.headline)
                 Text("NB: Pinned items wont be purged!")
                     .font(.caption)

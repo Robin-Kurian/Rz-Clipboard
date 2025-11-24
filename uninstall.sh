@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Uninstall script for R-ClipHistory
+# Uninstall script for Rz Clipboard
 # Removes the app and all associated data
 
 set -e
 
-APP_NAME="R-ClipHistory"
-BUNDLE_ID="com.robin.rcliphistory"
+APP_NAME="Rz Clipboard"
+BUNDLE_ID="com.robin.rzclipboard"
 
 echo "🗑️  Uninstalling $APP_NAME..."
 
@@ -50,14 +50,14 @@ if [ "$FOUND" = false ]; then
 fi
 
 # Remove application support data
-# echo "📂 Removing application data..."
-# APP_SUPPORT="$HOME/Library/Application Support/$APP_NAME"
-# if [ -d "$APP_SUPPORT" ]; then
-#     echo "   Removing: $APP_SUPPORT"
-#     rm -rf "$APP_SUPPORT"
-# else
-#     echo "   ℹ️  No application data found"
-# fi
+echo "📂 Removing application data..."
+APP_SUPPORT="$HOME/Library/Application Support/rzclipboard"
+if [ -d "$APP_SUPPORT" ]; then
+    echo "   Removing: $APP_SUPPORT"
+    rm -rf "$APP_SUPPORT"
+else
+    echo "   ℹ️  No application data found"
+fi
 
 # Remove preferences
 echo "⚙️  Removing preferences..."
@@ -93,7 +93,7 @@ echo "✅ Uninstall complete!"
 echo ""
 echo "Removed:"
 echo "  • App bundle"
-echo "  • Application data (~/Library/Application Support/$APP_NAME)"
+echo "  • Application data (~/Library/Application Support/rzclipboard)"
 echo "  • Preferences"
 echo "  • Caches"
 echo ""

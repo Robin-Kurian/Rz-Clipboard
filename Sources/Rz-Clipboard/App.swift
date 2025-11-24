@@ -1,10 +1,10 @@
 import SwiftUI
 import AppKit
 
-/// Main application entry point for R-ClipHistory
+/// Main application entry point for Rz Clipboard
 /// This is a macOS menu bar app that tracks clipboard history
 @main
-struct RClipHistoryApp: App {
+struct RzClipboardApp: App {
     // MARK: - State Management
     /// User preferences (history limit, poll interval, duplicate prevention)
     /// Persisted to UserDefaults and automatically synced
@@ -28,7 +28,7 @@ struct RClipHistoryApp: App {
         
         // Prevent multiple instances from running
         // Check if another instance is already running (before this one was launched)
-        let bundleId = "com.robin.rcliphistory"
+        let bundleId = "com.robin.rzclipboard"
         let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
         
         // Get current process ID
@@ -73,7 +73,7 @@ struct RClipHistoryApp: App {
     // MARK: - Scene Configuration
     /// Configure menu bar extra with dropdown window
     var body: some Scene {
-        MenuBarExtra("R-ClipHistory", systemImage: "doc.on.clipboard.fill") {
+        MenuBarExtra("Rz Clipboard", systemImage: "doc.on.clipboard.fill") {
             // Main tab view containing History and Settings tabs
             MainTabView(store: store, preferences: preferences)
                 .padding(12)

@@ -7,7 +7,7 @@ import AppKit
 final class LaunchAgentManager {
     // MARK: - Properties
     /// Bundle identifier for the app
-    private let bundleId = "com.robin.rcliphistory"
+    private let bundleId = "com.robin.rzclipboard"
     
     /// Launch Agent plist file URL
     private var launchAgentURL: URL {
@@ -22,7 +22,7 @@ final class LaunchAgentManager {
            !appBundlePath.isEmpty,
            appBundlePath.hasSuffix(".app") {
             // Running as app bundle - use Contents/MacOS/executable
-            let executableName = Bundle.main.executableURL?.lastPathComponent ?? "R-ClipHistory"
+            let executableName = Bundle.main.executableURL?.lastPathComponent ?? "rzclipboard"
             return "\(appBundlePath)/Contents/MacOS/\(executableName)"
         }
         

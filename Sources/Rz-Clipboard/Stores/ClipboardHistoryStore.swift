@@ -14,7 +14,7 @@ final class ClipboardHistoryStore: ObservableObject {
     @Published private(set) var entries: [ClipboardEntry] = []
     
     /// Pinned clipboard entries that persist across app restarts
-    /// Saved to ~/Library/Application Support/R-ClipHistory/pinned.json
+    /// Saved to ~/Library/Application Support/rzclipboard/pinned.json
     /// Sorted by most recent first (inserted at index 0)
     @Published private(set) var pinnedEntries: [ClipboardEntry] = []
     
@@ -24,7 +24,7 @@ final class ClipboardHistoryStore: ObservableObject {
     @Published private(set) var imageEntries: [ImageEntry] = []
     
     /// Pinned image entries that persist across app restarts
-    /// Saved to ~/Library/Application Support/R-ClipHistory/pinned-images.json
+    /// Saved to ~/Library/Application Support/rzclipboard/pinned-images.json
     /// Sorted by most recent first (inserted at index 0)
     @Published private(set) var pinnedImageEntries: [ImageEntry] = []
 
@@ -41,20 +41,20 @@ final class ClipboardHistoryStore: ObservableObject {
     private var timer: Timer?
     
     /// Legacy UserDefaults key for pinned entries (used for migration from older builds)
-    private let pinnedStorageKey = "com.robin.rcliphistory.pinned"
+    private let pinnedStorageKey = "com.robin.rzclipboard.pinned"
     
     /// Combine cancellables for preference change subscriptions
     private var cancellables: Set<AnyCancellable> = []
     
     /// File URL for persistent storage of pinned entries
-    /// Location: ~/Library/Application Support/R-ClipHistory/pinned.json
+    /// Location: ~/Library/Application Support/rzclipboard/pinned.json
     /// Directory is created automatically if it doesn't exist
     private lazy var pinnedFileURL: URL = {
         let fileManager = FileManager.default
         // Get Application Support directory for current user
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        // Create R-ClipHistory subdirectory
-        let directory = appSupport.appendingPathComponent("R-ClipHistory", isDirectory: true)
+        // Create rzclipboard subdirectory
+        let directory = appSupport.appendingPathComponent("rzclipboard", isDirectory: true)
         // Create directory if it doesn't exist (first run)
         if !fileManager.fileExists(atPath: directory.path) {
             try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -64,14 +64,14 @@ final class ClipboardHistoryStore: ObservableObject {
     }()
     
     /// File URL for persistent storage of pinned image entries
-    /// Location: ~/Library/Application Support/R-ClipHistory/pinned-images.json
+    /// Location: ~/Library/Application Support/rzclipboard/pinned-images.json
     /// Directory is created automatically if it doesn't exist
     private lazy var pinnedImageFileURL: URL = {
         let fileManager = FileManager.default
         // Get Application Support directory for current user
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        // Create R-ClipHistory subdirectory
-        let directory = appSupport.appendingPathComponent("R-ClipHistory", isDirectory: true)
+        // Create rzclipboard subdirectory
+        let directory = appSupport.appendingPathComponent("rzclipboard", isDirectory: true)
         // Create directory if it doesn't exist (first run)
         if !fileManager.fileExists(atPath: directory.path) {
             try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)

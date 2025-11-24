@@ -37,13 +37,14 @@ struct ClipboardRow: View {
                 .lineLimit(3) // Show max 3 lines, truncate with ellipsis
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .background(.quaternary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.clear, lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(isHovering ? 0.2 : 0.05), 
-                        radius: isHovering ? 6 : 2, x: 0, y: 2)
+                // White shadow for a subtle glow effect on the text container
+                .shadow(color: .white.opacity(0.2), radius: 6, x: 0, y: 2)
+                .shadow(color: .white.opacity(0.1), radius: 2, x: 0, y: 1)
                 .contentShape(RoundedRectangle(cornerRadius: 8))
             
             // Bottom row: time, delete button (if recent), copy status, pin button
@@ -86,8 +87,8 @@ struct ClipboardRow: View {
             }
         }
         .padding(10)
-        // Background with rounded corners
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        // Background with rounded corners - lighter opacity to match container
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
         // Hover border highlight
         .overlay(
             RoundedRectangle(cornerRadius: 8)

@@ -4,13 +4,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "R-ClipHistory",
+    name: "rzclipboard",
     platforms: [
         .macOS(.v13)
     ],
     targets: [
         .executableTarget(
-            name: "R-ClipHistory",
+            name: "rzclipboard",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI")
