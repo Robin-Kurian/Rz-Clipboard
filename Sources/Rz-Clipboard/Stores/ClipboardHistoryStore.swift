@@ -305,8 +305,10 @@ final class ClipboardHistoryStore: ObservableObject {
         
         // Create new timer that calls captureClipboardChange
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            // Use Task to call async function from timer callback
-            Task { await self?.captureClipboardChange() }
+            // Use Task with explicit MainActor to ensure thread safety
+            Task { @MainActor in
+                self?.captureClipboardChange()
+            }
         }
         
         // Add timer to main run loop so it works even when menu is closed
@@ -324,6 +326,13 @@ final class ClipboardHistoryStore: ObservableObject {
         
         // Check if clipboard actually changed (changeCount increments on any change)
         guard pasteboard.changeCount != changeCount else { return }
+        
+        // Verify clipboard access (macOS 14+ may require permission)
+        guard pasteboard.types != nil else {
+            print("⚠️  Clipboard access denied or unavailable")
+            return
+        }
+        
         changeCount = pasteboard.changeCount
 
         // Try to capture image first (if enabled)
@@ -351,6 +360,13 @@ final class ClipboardHistoryStore: ObservableObject {
                 if let tiffData = image.tiffRepresentation,
                    let bitmapRep = NSBitmapImageRep(data: tiffData),
                    let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                    
+                    // Validate image size (max 10MB to prevent excessive memory usage)
+                    let maxImageSize = 10 * 1024 * 1024 // 10MB
+                    if pngData.count > maxImageSize {
+                        print("⚠️  Skipping large image: \(pngData.count / 1024 / 1024)MB exceeds 10MB limit")
+                        return // Skip this image
+                    }
                     
                     // Check for duplicates by comparing image data (check both recent and pinned)
                     let shouldAdd = !preferences.preventDuplicates || 
@@ -407,9 +423,16 @@ final class ClipboardHistoryStore: ObservableObject {
     /// Falls back to UserDefaults for migration from older builds
     private func loadPinnedEntries() {
         // Try loading from JSON file (current storage method)
-        if let data = try? Data(contentsOf: pinnedFileURL) {
+        do {
+            let data = try Data(contentsOf: pinnedFileURL)
             decodePinnedEntries(from: data)
+            print("✅ Loaded \(pinnedEntries.count) pinned entries from disk")
             return
+        } catch {
+            // File doesn't exist or can't be read - this is normal on first run
+            if FileManager.default.fileExists(atPath: pinnedFileURL.path) {
+                print("⚠️  Failed to load pinned entries: \(error.localizedDescription)")
+            }
         }
 
         // Fallback: Migrate from UserDefaults (older builds used this)
@@ -440,10 +463,15 @@ final class ClipboardHistoryStore: ObservableObject {
     /// Save pinned entries to disk as JSON
     /// Uses atomic write to prevent corruption if app crashes during save
     private func persistPinnedEntries() {
-        guard let data = try? JSONEncoder().encode(pinnedEntries) else { return }
-        // Atomic write ensures file is either fully written or not at all
-        // Prevents partial/corrupted files if app crashes during write
-        try? data.write(to: pinnedFileURL, options: [.atomic])
+        do {
+            let data = try JSONEncoder().encode(pinnedEntries)
+            // Atomic write ensures file is either fully written or not at all
+            // Prevents partial/corrupted files if app crashes during write
+            try data.write(to: pinnedFileURL, options: [.atomic])
+            print("✅ Saved \(pinnedEntries.count) pinned entries to disk")
+        } catch {
+            print("❌ Failed to save pinned entries: \(error.localizedDescription)")
+        }
     }
     
     // MARK: - Image Persistence
@@ -453,9 +481,16 @@ final class ClipboardHistoryStore: ObservableObject {
         guard preferences.saveImages else { return }
         
         // Try loading from JSON file (current storage method)
-        if let data = try? Data(contentsOf: pinnedImageFileURL) {
+        do {
+            let data = try Data(contentsOf: pinnedImageFileURL)
             decodePinnedImages(from: data)
+            print("✅ Loaded \(pinnedImageEntries.count) pinned images from disk")
             return
+        } catch {
+            // File doesn't exist or can't be read - this is normal on first run
+            if FileManager.default.fileExists(atPath: pinnedImageFileURL.path) {
+                print("⚠️  Failed to load pinned images: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -479,10 +514,15 @@ final class ClipboardHistoryStore: ObservableObject {
     private func persistPinnedImages() {
         guard preferences.saveImages else { return }
         
-        guard let data = try? JSONEncoder().encode(pinnedImageEntries) else { return }
-        // Atomic write ensures file is either fully written or not at all
-        // Prevents partial/corrupted files if app crashes during write
-        try? data.write(to: pinnedImageFileURL, options: [.atomic])
+        do {
+            let data = try JSONEncoder().encode(pinnedImageEntries)
+            // Atomic write ensures file is either fully written or not at all
+            // Prevents partial/corrupted files if app crashes during write
+            try data.write(to: pinnedImageFileURL, options: [.atomic])
+            print("✅ Saved \(pinnedImageEntries.count) pinned images to disk")
+        } catch {
+            print("❌ Failed to save pinned images: \(error.localizedDescription)")
+        }
     }
 }
 

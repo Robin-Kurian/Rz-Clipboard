@@ -57,6 +57,7 @@ struct ImagesView: View {
                         LazyVGrid(columns: [
                             GridItem(.flexible(), spacing: 8),
                             GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8),
                             GridItem(.flexible(), spacing: 8)
                         ], spacing: 8) {
                             ForEach(store.pinnedImageEntries) { imageEntry in
@@ -74,6 +75,7 @@ struct ImagesView: View {
                     if !store.imageEntries.isEmpty {
                         sectionLabel("Recent")
                         LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 8),
                             GridItem(.flexible(), spacing: 8),
                             GridItem(.flexible(), spacing: 8),
                             GridItem(.flexible(), spacing: 8)
@@ -137,71 +139,76 @@ struct ImageThumbnail: View {
     
     // MARK: - Body
     var body: some View {
-        // Fixed square container ensures all thumbnails are the same size
+        // Container with hover detection
         ZStack {
-            // Thumbnail image - always square, maintains aspect ratio by cropping
-            Group {
-                if let image = imageEntry.getImage(), image.isValid {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill) // Fill the square, cropping if needed to maintain aspect ratio
-                        .frame(width: 90, height: 90) // Fixed square dimensions for all thumbnails
-                        .clipped() // Clip any overflow to maintain perfect square
-                        .cornerRadius(8)
-                } else {
-                    // Fallback for invalid or missing images
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(width: 90, height: 90) // Fixed square dimensions
-                        .overlay(
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        )
+            // Fixed square container ensures all thumbnails are the same size
+            ZStack {
+                // Thumbnail image - always square, maintains aspect ratio by cropping
+                Group {
+                    if let image = imageEntry.getImage(), image.isValid {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill) // Fill the square, cropping if needed to maintain aspect ratio
+                            .frame(width: 90, height: 90) // Fixed square dimensions for all thumbnails
+                            .clipped() // Clip any overflow to maintain perfect square
+                            .cornerRadius(8)
+                    } else {
+                        // Fallback for invalid or missing images
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 90, height: 90) // Fixed square dimensions
+                            .overlay(
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                            )
+                    }
                 }
-            }
-            
-            // Action buttons overlay (shown on hover)
-            if isHovering {
+                
+                
+                // Action buttons overlay
                 VStack {
-                    HStack {
-                        // Pin/unpin button (top left)
-                        Button(action: pinAction) {
-                            Image(systemName: imageEntry.isPinned ? "pin.slash" : "pin")
-                                .font(.caption)
-                                .foregroundStyle(.white)
-                                .padding(6)
-                                .background(
-                                    Circle()
-                                        .fill(Color.black.opacity(0.7))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .help(imageEntry.isPinned ? "Unpin" : "Pin")
-                        
-                        Spacer()
-                        
-                        // Delete button (top right, only for recent items)
-                        if let deleteAction = deleteAction, !imageEntry.isPinned {
-                            Button(action: deleteAction) {
-                                Image(systemName: "trash")
+                    // Top row: pin and delete buttons (only shown on hover)
+                    if isHovering {
+                        HStack {
+                            // Pin/unpin button (top left)
+                            Button(action: pinAction) {
+                                Image(systemName: imageEntry.isPinned ? "pin.slash" : "pin")
                                     .font(.caption)
                                     .foregroundStyle(.white)
                                     .padding(6)
                                     .background(
                                         Circle()
-                                            .fill(Color.red.opacity(0.8))
+                                            .fill(Color.black.opacity(0.7))
                                     )
                             }
                             .buttonStyle(.plain)
-                            .help("Delete")
+                            .help(imageEntry.isPinned ? "Unpin" : "Pin")
+                            
+                            Spacer()
+                            
+                            // Delete button (top right, only for recent items)
+                            if let deleteAction = deleteAction, !imageEntry.isPinned {
+                                Button(action: deleteAction) {
+                                    Image(systemName: "trash")
+                                        .font(.caption)
+                                        .foregroundStyle(.white)
+                                        .padding(6)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.red.opacity(0.8))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .help("Delete")
+                            }
                         }
+                        .padding(6)
                     }
-                    .padding(6)
                     
                     Spacer()
                     
-                    // Copy button (bottom center)
+                    // Copy button (bottom center) - ALWAYS visible
                     Button(action: {
                         copyAction()
                         didCopyRecently = true
@@ -222,9 +229,11 @@ struct ImageThumbnail: View {
                     .help(didCopyRecently ? "Copied!" : "Copy image")
                     .padding(.bottom, 6)
                 }
+                .allowsHitTesting(true) // Allow button interactions
             }
+            .frame(width: 90, height: 90) // Fixed container size ensures no overlapping
         }
-        .frame(width: 90, height: 90) // Fixed container size ensures no overlapping
+        .contentShape(Rectangle()) // Make entire area detect hover
         .onHover { hovering in
             isHovering = hovering
         }

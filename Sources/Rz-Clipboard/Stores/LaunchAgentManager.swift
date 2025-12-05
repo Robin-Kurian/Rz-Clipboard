@@ -23,12 +23,23 @@ final class LaunchAgentManager {
            appBundlePath.hasSuffix(".app") {
             // Running as app bundle - use Contents/MacOS/executable
             let executableName = Bundle.main.executableURL?.lastPathComponent ?? "rzclipboard"
-            return "\(appBundlePath)/Contents/MacOS/\(executableName)"
+            let executablePath = "\(appBundlePath)/Contents/MacOS/\(executableName)"
+            
+            // Validate that executable actually exists at this path
+            if FileManager.default.fileExists(atPath: executablePath) {
+                return executablePath
+            } else {
+                print("⚠️  Executable not found at expected path: \(executablePath)")
+                return nil
+            }
         }
         
         // Running from command line (swift run) - use current executable
         if let executablePath = Bundle.main.executablePath {
-            return executablePath
+            // Validate that executable exists
+            if FileManager.default.fileExists(atPath: executablePath) {
+                return executablePath
+            }
         }
         
         return nil
@@ -77,7 +88,7 @@ final class LaunchAgentManager {
         // This prevents it from running on next login
         if FileManager.default.fileExists(atPath: launchAgentURL.path) {
             let process = Process()
-            process.launchPath = "/bin/launchctl"
+            process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
             process.arguments = ["unload", launchAgentURL.path]
             // Ignore errors - agent might not be loaded
             try? process.run()

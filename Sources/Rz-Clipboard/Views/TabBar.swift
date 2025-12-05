@@ -2,12 +2,12 @@ import SwiftUI
 
 /// Reusable tab item model for tab bar
 struct TabItem: Identifiable {
-    let id: Int
+    let id: String  // Changed from Int to String for stable IDs
     let title: String
     let icon: String
     let selectedIcon: String
     
-    init(id: Int, title: String, icon: String, selectedIcon: String? = nil) {
+    init(id: String, title: String, icon: String, selectedIcon: String? = nil) {
         self.id = id
         self.title = title
         self.icon = icon
@@ -21,8 +21,8 @@ struct TabBar: View {
     /// Array of tab items to display
     let items: [TabItem]
     
-    /// Currently selected tab ID
-    @Binding var selectedTab: Int
+    /// Currently selected tab ID (String instead of Int)
+    @Binding var selectedTab: String
     
     // MARK: - Body
     var body: some View {

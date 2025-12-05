@@ -23,6 +23,7 @@ struct SettingsView: View {
                 autoStartSection
                 
                 Spacer()
+                    .frame(height: 16)
                 
                 // Bottom buttons: Reset on left, Quit on right
                 bottomButtons
@@ -43,8 +44,13 @@ struct SettingsView: View {
     /// History limit configuration section
     /// Controls maximum number of recent (non-pinned) entries to keep
     private var historyLimitSection: some View {
-        GroupBox("History limit") {
+        GroupBox {
             VStack(alignment: .leading, spacing: 8) {
+                // Title
+                Text("History limit")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
                 // Stepper for adjusting limit (10-100, step 5)
                 Stepper(value: $preferences.historyLimit, in: 10...100, step: 5) {
                     Text("\(preferences.historyLimit) items")
@@ -60,8 +66,13 @@ struct SettingsView: View {
     /// Clipboard polling interval configuration section
     /// Controls how frequently the app checks for clipboard changes
     private var pollingSection: some View {
-        GroupBox("Clipboard polling") {
+        GroupBox {
             VStack(alignment: .leading, spacing: 8) {
+                // Title
+                Text("Clipboard polling")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
                 // Slider for adjusting interval (0.3-2.0 seconds, step 0.1)
                 Slider(value: $preferences.pollInterval, in: 0.3...2.0, step: 0.1) {
                     Text("Interval")

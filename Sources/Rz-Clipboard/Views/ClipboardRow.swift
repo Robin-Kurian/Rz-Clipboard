@@ -30,7 +30,7 @@ struct ClipboardRow: View {
     // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Top row: content text
+            // Top row: content text (tappable for copy)
             Text(entry.content)
                 .font(.system(.body, design: .rounded))
                 .multilineTextAlignment(.leading)
@@ -46,13 +46,25 @@ struct ClipboardRow: View {
                 .shadow(color: .white.opacity(0.2), radius: 6, x: 0, y: 2)
                 .shadow(color: .white.opacity(0.1), radius: 2, x: 0, y: 1)
                 .contentShape(RoundedRectangle(cornerRadius: 8))
+                .onTapGesture {
+                    // Copy when tapping the text area
+                    copyAction()
+                    didCopyRecently = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        didCopyRecently = false
+                    }
+                }
             
             // Bottom row: time, delete button (if recent), copy status, pin button
-            HStack {
-                // Time label with pin or clock icon
-                Label(relativeTime, systemImage: entry.isPinned ? "pin.fill" : "clock")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                // Time label with pin or clock icon - reduced spacing
+                HStack(spacing: 4) {
+                    Image(systemName: entry.isPinned ? "pin.fill" : "clock")
+                        .font(.caption)
+                    Text(relativeTime)
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
                 
                 // Delete button (only shown for non-pinned items, right after time)
                 if let deleteAction = deleteAction, !entry.isPinned {
@@ -69,21 +81,39 @@ struct ClipboardRow: View {
                 
                 Spacer()
                 
-                // Copy status label (changes to "Copied" after tap)
-                Label(didCopyRecently ? "Copied" : "Tap to copy", 
-                      systemImage: didCopyRecently ? "checkmark.circle.fill" : "doc.on.doc")
-                    .font(.caption)
-                    .foregroundStyle(didCopyRecently ? .green : .secondary)
-                
-                // Pin/unpin button
-                Button {
-                    pinAction()
-                } label: {
-                    Label(entry.isPinned ? "Unpin" : "Pin", 
-                          systemImage: entry.isPinned ? "pin.slash" : "pin")
+                // Copy status label (changes to "Copied" after tap) - fully clickable
+                HStack(spacing: 4) {
+                    Image(systemName: didCopyRecently ? "checkmark.circle.fill" : "doc.on.doc")
+                        .font(.caption)
+                    Text(didCopyRecently ? "Copied" : "Tap to copy")
                         .font(.caption)
                 }
-                .buttonStyle(.plain)
+                .foregroundStyle(didCopyRecently ? .green : .secondary)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Copy when clicking the status label
+                    copyAction()
+                    didCopyRecently = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        didCopyRecently = false
+                    }
+                }
+                
+                // Pin/unpin button with proper hit area
+                HStack(spacing: 4) {
+                    Image(systemName: entry.isPinned ? "pin.slash" : "pin")
+                        .font(.caption)
+                    Text(entry.isPinned ? "Unpin" : "Pin")
+                        .font(.caption)
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    pinAction()
+                }
             }
         }
         .padding(10)
@@ -97,17 +127,6 @@ struct ClipboardRow: View {
         // Hover shadow effect
         .shadow(color: .black.opacity(isHovering ? 0.2 : 0.05), 
                 radius: isHovering ? 6 : 2, x: 0, y: 2)
-        // Make entire row tappable (not just text)
-        .contentShape(RoundedRectangle(cornerRadius: 8))
-        // Handle tap to copy
-        .onTapGesture {
-            copyAction()
-            // Show "Copied" feedback for 1.2 seconds
-            didCopyRecently = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                didCopyRecently = false
-            }
-        }
         // Track hover state for visual feedback
         .onHover { hovering in
             isHovering = hovering
